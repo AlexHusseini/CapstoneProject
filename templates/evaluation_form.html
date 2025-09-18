@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+{% if closed %}
+  <h2>Round Closed</h2>
+  <p>This evaluation round is closed. No further submissions are accepted.</p>
+{% elif submitted %}
+  <h2>Thank you!</h2>
+  <p>Your evaluation has been recorded.</p>
+{% else %}
+  <h2>Peer Evaluation</h2>
+  <p><b>Round:</b> {{ t.eval_round.name }}</p>
+  <p><b>Evaluator:</b> {{ t.evaluator.full_name }} ({{ t.evaluator.email }})</p>
+  <p><b>Evaluatee:</b> {{ t.evaluatee.full_name }} ({{ t.evaluatee.email }})</p>
+  <hr>
+  <form method="post">
+    <table class="table">
+      <tr><th>Criterion</th><th>Description</th><th>Score</th></tr>
+      {% for item in rubric.items %}
+      <tr>
+        <td>{{ item.criterion }}</td>
+        <td>{{ item.description or "" }}</td>
+        <td>
+          <input type="number" name="criterion_{{ item.id }}" min="0" max="{{ item.max_score }}" required>
+          <small>0 - {{ item.max_score }}</small>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+    <label>Comments (optional)
+      <textarea name="comments" rows="4" placeholder="Share constructive, specific feedback."></textarea>
+    </label>
+    <button type="submit">Submit</button>
+  </form>
+{% endif %}
+{% endblock %}

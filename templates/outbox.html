@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Outbox</h2>
+<table class="table">
+  <tr><th>When</th><th>To</th><th>Subject</th><th>Body</th></tr>
+  {% for m in msgs %}
+  <tr>
+    <td>{{ m.created_at | to_local }}
+    <td>{{ m.to_addr }}</td>
+    <td>{{ m.subject }}</td>
+    <td><pre>{{ m.body }}</pre></td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Start Evaluation Round</h2>
+<div class="card">
+  <form method="post">
+    <label>Round Name 
+      <div style="margin-top: 10px;">
+        <input type="text" name="name" placeholder="e.g., Fall 2025 - Sprint 1">
+      </div>
+    </label>
+    <label>Rubric
+      <div style="margin-top: 10px;">
+        <select name="rubric_id" required>
+          {% for r in rubrics %}
+            <option value="{{ r.id }}">{{ r.name }} ({{ r.items|length }} items)</option>
+          {% endfor %}
+        </select>
+      </div>
+    </label>
+    <div style="margin-top: 15px;">
+      <button type="submit">Generate & Send Forms</button>
+    <div>
+  </form>
+</div>
+{% endblock %}

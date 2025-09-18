@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="grid">
+  <div class="card">
+    <div style="margin-bottom: -25px;">
+      <h3>Students</h3>
+    </div>
+    <p>Total: <b>{{ students_count }}</b></p>
+    <div style="margin-top: -2px;">
+      <p><a class="btn" href="{{ url_for('upload_students') }}">Manage</a></p>
+    </div>
+  </div>
+  <div class="card">
+    <div style="margin-bottom: -25px;">
+      <h3>Rubrics</h3>
+    </div>
+    <p>Total: <b>{{ rubrics|length }}</b></p>
+    <div style="margin-top: -2px;">
+      <p><a class="btn" href="{{ url_for('rubrics') }}">Manage</a></p>
+    </div>
+  </div>
+</section>
+
+<h3>Evaluation Rounds</h3>
+<table class="table">
+  <tr><th>ID</th><th>Name</th><th>Rubric</th><th>Status</th><th>Created</th><th>Actions</th></tr>
+  {% for r in rounds %}
+  <tr>
+    <td>{{ r.id }}</td>
+    <td>{{ r.name }}</td>
+    <td>{{ r.rubric.name }}</td>
+    <td>{{ r.status }}</td>
+    <td>{{ r.created_at | to_local }}
+
+    <td>
+      <div class="actions-row">
+        <div class="action-group">
+          <a class="btn equal" href="{{ url_for('report', round_id=r.id) }}">Download Report</a>
+
+          {% if r.status != 'closed' %}
+          <form method="post" action="{{ url_for('close_round', round_id=r.id) }}" style="display:inline;">
+            <button class="btn equal" type="submit">Close Round</button>
+          </form>
+          {% endif %}
+        </div>
+
+        <form method="post"
+              action="{{ url_for('delete_round', round_id=r.id) }}"
+              class="delete-form"
+              onsubmit="return confirm('Delete this round and ALL its responses? This cannot be undone. Are you sure?');">
+          <button class="btn icon danger" type="submit" aria-label="Delete round" title="Delete round">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M18 6L6 18" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M6 6L18 18" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span class="sr-only"></span>
+          </button>
+        </form>
+      </div>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

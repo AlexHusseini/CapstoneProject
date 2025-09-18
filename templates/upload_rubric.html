@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Upload Rubric (CSV)</h2>
+<p>Required columns: <code>criterion,weight,max_score</code>. Optional: <code>description</code>.</p>
+<form method="post" enctype="multipart/form-data">
+  <label>Name <input type="text" name="name" placeholder="Uploaded Rubric"></label>
+  <input type="file" name="file" accept=".csv" required>
+  <button type="submit">Upload</button>
+</form>
+{% endblock %}

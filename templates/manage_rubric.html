@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Rubric: {{ rubric.name }}</h2>
+
+<h3>Add Item</h3>
+<form method="post">
+  <label>Criterion <input type="text" name="criterion" required></label>
+  <label>Description <input type="text" name="description"></label>
+  <label>Weight <input type="number" name="weight" step="0.1" value="1" required></label>
+  <label>Max Score <input type="number" name="max_score" value="5" min="1" required></label>
+  <div style="margin-top: 15px;">
+    <button type="submit">Add</button>
+  </div>
+</form>
+
+<h3>Items</h3>
+<table class="table">
+  <tr><th>Criterion</th><th>Description</th><th>Weight</th><th>Max</th><th></th></tr>
+  {% for it in rubric.items %}
+  <tr>
+    <td>{{ it.criterion }}</td>
+    <td>{{ it.description or "" }}</td>
+    <td>{{ it.weight }}</td>
+    <td>{{ it.max_score }}</td>
+    <td>
+      <form method="post" action="{{ url_for('delete_rubric_item', rubric_id=rubric.id, item_id=it.id) }}">
+        <button class="btn danger" type="submit">Delete</button>
+      </form>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+
+<div style="margin-top: 15px;">
+  <form method="get" action="{{ url_for('rubrics') }}">
+    <button type="submit" class="btn">Finish</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Rubrics</h2>
+<section class="grid">
+  <div class="card"> 
+    <div style="margin-bottom: -10px;">
+      <h3>Create New</h3>
+    </div>
+    <form method="post">
+        <label>Name 
+        <div style="margin-top: 10px;">
+          <input type="text" name="name" placeholder="Default Rubric" required>
+        </div>
+      </label>
+      <div style="margin-top: 12px;">
+        <div style="margin-bottom: 45px;">
+          <button type="submit">Create</button>
+        </div>
+      </div>
+    </form>
+
+  </div>
+  <div class="card">
+    <div style="margin-bottom: -10px;">
+      <h3>Upload CSV</h3>
+    </div>
+    <form method="post" action="{{ url_for('upload_rubric') }}" enctype="multipart/form-data">
+      <label>
+        Name 
+        <div style="margin-top: 10px;">
+          <input type="text" name="name" placeholder="Uploaded Rubric">
+        </div>
+      </label>
+      <input type="file" name="file" accept=".csv" required>
+      <div style="margin-top: 12px;">
+        <button type="submit" class="btn">Upload</button>
+      </div>
+    </form>
+    <p>CSV columns required: criterion,weight,max_score (optional: description)</p>
+  </div>
+</section>
+
+<h3>Existing Rubrics</h3>
+<ul>
+  {% for r in rubrics %}
+    <li>
+      <a href="{{ url_for('edit_rubric', rubric_id=r.id) }}">{{ r.name }}</a>
+      ({{ r.items|length }} items)
+
+      <form method="post" action="{{ url_for('delete_rubric', rubric_id=r.id) }}"
+            style="display:inline" 
+            onsubmit="return confirm('Delete rubric {{ r.name }}?');">
+        <button class="btn icon small danger" type="submit" aria-label="Delete rubric" title="Delete rubric">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M18 6L6 18" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M6 6L18 18" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span class="sr-only"></span>
+          </button>
+      </form>
+    </li>
+  {% else %}
+    <li>No rubrics yet.</li>
+  {% endfor %}
+</ul>
+{% endblock %} 

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %} 
+<h2>Students</h2> 
+<section class="grid">
+  <div class="card">
+    <h3>Upload CSV</h3>
+    <form method="post" action="{{ url_for('upload_students') }}" enctype="multipart/form-data">
+      <input type="file" name="file" accept=".csv" required>
+      <div style="margin-top: 12px;">
+        <button type="submit">Upload</button>
+      </div>
+    </form>
+    <p>CSV columns required: first_name,last_name,email,team</p>
+  </div>
+</section>
+
+<h3>Existing Students</h3>
+<ul>
+  {% for s in students %}
+    <li>{{ s.full_name }} ({{ s.email }}, {{ s.team }})</li>
+  {% else %}
+    <li>No students yet.</li>
+  {% endfor %}
+</ul>
+{% endblock %}
