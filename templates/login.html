@@ -10,9 +10,24 @@
 
       <label for="password">Password</label>
       <input id="password" type="password" name="password" autocomplete="current-password" required>
+      <label style="display:flex; align-items:center; gap:8px; margin-top:2px;">
+        <input type="checkbox" id="showpw" aria-controls="password">
+        <span class="muted">Show password</span>
+      </label>
 
       <button type="submit" class="btn" style="margin-top:12px; width:100%;">Login</button>
     </form>
   </div>
 </section>
+<script>
+  (function(){
+    var cb=document.getElementById('showpw');
+    var pw=document.getElementById('password');
+    if(cb && pw){
+      cb.addEventListener('change',function(){
+        pw.type=this.checked?'text':'password';
+      });
+    }
+  })();
+</script>
 {% endblock %}
