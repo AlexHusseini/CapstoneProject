@@ -1,9 +1,18 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Professor Login</h2>
-<form method="post">
-  <label>Email <input type="email" name="email" required></label>
-  <label>Password <input type="password" name="password" required></label>
-  <button type="submit">Login</button>
-</form>
+<section class="auth-wrap">
+  <div class="card auth-card" role="region" aria-labelledby="login-title">
+    <div class="brand-mark" aria-hidden="true">Peer Evaluation System</div>
+    <h2 id="login-title" class="auth-title">Professor Login</h2>
+    <form method="post" class="auth-form">
+      <label for="email">Email</label>
+      <input id="email" type="email" name="email" autocomplete="username" required>
+
+      <label for="password">Password</label>
+      <input id="password" type="password" name="password" autocomplete="current-password" required>
+
+      <button type="submit" class="btn" style="margin-top:12px; width:100%;">Login</button>
+    </form>
+  </div>
+</section>
 {% endblock %}

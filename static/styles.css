@@ -178,3 +178,52 @@ footer{ text-align:center; padding:24px; opacity:0.7; }
 .action-group .btn, .btn.icon {
   vertical-align: middle;
 }
+
+/* Auth/Login layout */
+.auth-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 70vh;
+}
+
+.auth-card {
+    width: 100%;
+    max-width: 420px;
+}
+
+.auth-title {
+    margin: 0 0 8px 0;
+    text-align: center;
+}
+
+.brand-mark {
+    text-align: center;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+    opacity: 0.95;
+}
+
+.auth-form {
+    margin-top: 12px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+}
+
+.auth-form label {
+    margin: 6px 0 4px 2px;
+    font-weight: 600;
+}
+
+input[type=text]:focus,
+input[type=number]:focus,
+input[type=email]:focus,
+input[type=password]:focus,
+select:focus,
+textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(91,192,190,0.25);
+}
