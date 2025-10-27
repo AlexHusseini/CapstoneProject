@@ -2,14 +2,44 @@
 {% block content %}
 <h2>Outbox</h2>
 <table class="table">
-  <tr><th>When</th><th>To</th><th>Subject</th><th>Body</th></tr>
+  <tr><th>When</th><th>To</th><th>Subject</th><th>Body</th><th>Actions</th></tr>
   {% for m in msgs %}
   <tr>
     <td>{{ m.created_at | to_local }}
     <td>{{ m.to_addr }}</td>
     <td>{{ m.subject }}</td>
-    <td><pre>{{ m.body }}</pre></td>
+    <td>
+      <pre>{{ m.body }}</pre>
+      {% if msg_forms and msg_forms.get(m.id) %}
+        <div style="margin-top:8px; display:flex; flex-wrap:wrap; gap:8px;">
+          {% for f in msg_forms.get(m.id) %}
+            <a class="btn" target="_blank" rel="noopener" href="{{ f.url }}">{{ f.label }}</a>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </td>
+    <td>
+      {% if email_target == "outlook" %}
+        <a class="btn" target="_blank" rel="noopener" href="https://outlook.office.com/mail/deeplink/compose?to={{ m.to_addr | urlquote }}&subject={{ m.subject | urlquote }}&body={{ m.body | urlquote }}">Open in Outlook</a>
+      {% elif email_target == "mailto" %}
+        <a class="btn" href="mailto:{{ m.to_addr }}?subject={{ m.subject | urlquote }}&body={{ m.body | urlquote }}">Compose</a>
+      {% elif email_target == "d2l" %}
+        <button class="btn" onclick="copyMsg('{{ m.subject | urlquote }}','{{ m.body | urlquote }}')">Copy for D2L</button>
+      {% else %}
+        <a class="btn" href="mailto:{{ m.to_addr }}?subject={{ m.subject | urlquote }}&body={{ m.body | urlquote }}">Compose</a>
+      {% endif %}
+    </td>
   </tr>
   {% endfor %}
 </table>
+<script>
+function copyMsg(sub, body){
+  const text = "Subject: " + decodeURIComponent(sub) + "\n\n" + decodeURIComponent(body);
+  navigator.clipboard.writeText(text).then(function(){
+    alert('Copied to clipboard. Paste into D2L compose.');
+  }, function(){
+    alert('Copy failed. Select and copy manually.');
+  });
+}
+</script>
 {% endblock %}

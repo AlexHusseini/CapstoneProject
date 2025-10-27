@@ -1,7 +1,7 @@
 import smtplib
 from email.mime.text import MIMEText
 from flask import current_app
-from .models import db, DevOutbox
+from models import db, DevOutbox
 
 def _has_smtp_config():
     cfg = current_app.config

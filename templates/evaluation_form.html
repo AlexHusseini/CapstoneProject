@@ -20,15 +20,18 @@
         <td>{{ item.criterion }}</td>
         <td>{{ item.description or "" }}</td>
         <td>
-          <input type="number" name="criterion_{{ item.id }}" min="0" max="{{ item.max_score }}" required>
-          <small>0 - {{ item.max_score }}</small>
+          <div role="radiogroup" aria-label="{{ item.criterion }} score">
+            {% for s in range(0, item.max_score + 1) %}
+              <label style="margin-right:10px;">
+                <input type="radio" name="criterion_{{ item.id }}" value="{{ s }}" {% if s == 0 %}required{% endif %}> {{ s }}
+              </label>
+            {% endfor %}
+            <small>0 - {{ item.max_score }}</small>
+          </div>
         </td>
       </tr>
       {% endfor %}
     </table>
-    <label>Comments (optional)
-      <textarea name="comments" rows="4" placeholder="Share constructive, specific feedback."></textarea>
-    </label>
     <button type="submit">Submit</button>
   </form>
 {% endif %}

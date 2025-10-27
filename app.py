@@ -8,13 +8,14 @@ from werkzeug.security import generate_password_hash
 from dotenv import load_dotenv
 from io import BytesIO
 import pandas as pd
-from .config import Config
-from .models import (
+from config import Config
+from models import (
     db, User, Student, Rubric, RubricItem, EvalRound,
     EvaluationToken, EvaluationResponse, DevOutbox
 )
-from .mailer import send_email
-from .nlp import detect_red_flags, simple_summarize, openai_summarize
+from mailer import send_email
+from nlp import detect_red_flags, simple_summarize, openai_summarize
+from scoring import compute_weighted_percentage, aggregate_scores_df, apply_curve_scores
 from sqlalchemy import or_
 
 load_dotenv()
@@ -35,6 +36,14 @@ def create_app():
         return s.replace(" 0", " ")
 
     app.jinja_env.filters["to_local"] = to_local_timestr
+
+    # URL quoting for templates (e.g., mailto links)
+    from urllib.parse import quote as _url_quote
+
+    def _urlquote(value: str):
+        return _url_quote(value or "")
+
+    app.jinja_env.filters["urlquote"] = _urlquote
 
     app.config.from_object(Config)
     os.makedirs(app.instance_path, exist_ok=True)
@@ -153,14 +162,24 @@ def create_app():
             # add item
             criterion = request.form.get("criterion","").strip()
             description = request.form.get("description","").strip()
-            weight = float(request.form.get("weight","1") or 1)
-            max_score = int(request.form.get("max_score","5") or 5)
+            try:
+                weight = float(request.form.get("weight","1") or 1)
+                max_score = int(request.form.get("max_score","5") or 5)
+            except ValueError:
+                flash("Weight and Max Score must be numeric.", "danger")
+                return redirect(request.url)
             if not criterion:
                 flash("Criterion is required.", "warning")
-            else:
-                db.session.add(RubricItem(rubric_id=rubric.id, criterion=criterion, description=description, weight=weight, max_score=max_score))
-                db.session.commit()
-                flash("Item added.", "success")
+                return redirect(request.url)
+            if weight <= 0:
+                flash("Weight must be greater than 0.", "warning")
+                return redirect(request.url)
+            if max_score <= 0:
+                flash("Max Score must be greater than 0.", "warning")
+                return redirect(request.url)
+            db.session.add(RubricItem(rubric_id=rubric.id, criterion=criterion, description=description, weight=weight, max_score=max_score))
+            db.session.commit()
+            flash("Item added.", "success")
             return redirect(request.url)
         return render_template("manage_rubric.html", rubric=rubric)
 
@@ -267,7 +286,19 @@ def create_app():
     @login_required
     def outbox():
         msgs = DevOutbox.query.order_by(DevOutbox.created_at.desc()).limit(200).all()
-        return render_template("outbox.html", msgs=msgs)
+        target = current_app.config.get("EMAIL_LINK_TARGET", "outlook")
+        # Extract evaluation links from message bodies to offer quick-open buttons
+        import re
+        pattern = re.compile(r"-\s*Evaluate\s+([^:]+):\s*(https?://\S+)")
+        msg_forms = {}
+        for m in msgs:
+            forms = []
+            for match in pattern.finditer(m.body or ""):
+                label = match.group(1).strip()
+                url = match.group(2).strip()
+                forms.append({"label": f"Evaluate {label}", "url": url})
+            msg_forms[m.id] = forms
+        return render_template("outbox.html", msgs=msgs, email_target=target, msg_forms=msg_forms)
 
     @app.route("/evaluate/<token>", methods=["GET","POST"])
     def evaluate(token):
@@ -288,8 +319,7 @@ def create_app():
                     val = 0
                 val = max(0, min(item.max_score, val))
                 scores[str(item.id)] = val
-            comments = request.form.get("comments","").strip()
-            resp = EvaluationResponse(token_id=t.id, scores=scores, comments=comments)
+            resp = EvaluationResponse(token_id=t.id, scores=scores, comments=None)
             t.submitted_at = datetime.utcnow()
             db.session.add(resp); db.session.commit()
             return render_template("evaluation_form.html", submitted=True, t=t, rubric=round.rubric)
@@ -341,15 +371,9 @@ def create_app():
         per_eval = []
         for row in rows:
             s = row["scores"]
-            if not s: 
+            if not s:
                 continue
-            total_weight = sum(w for (_, w, _) in rubric_items.values())
-            if total_weight == 0: total_weight = 1
-            weighted = 0.0
-            for cid, (crit, weight, max_score) in rubric_items.items():
-                val = int(s.get(cid, 0))
-                weighted += (val / max_score) * weight if max_score else 0
-            score_pct = (weighted / total_weight) * 100.0
+            score_pct = compute_weighted_percentage(s, rubric_items)
             per_eval.append({
                 "Evaluatee": row["evaluatee"],
                 "Team": row["team"],
@@ -358,12 +382,20 @@ def create_app():
             })
         df_eval = pd.DataFrame(per_eval)
         if not df_eval.empty:
-            df_scores = df_eval.groupby(["Evaluatee", "Team"]).agg(
-                Avg_Score_Pct=("Score %", "mean"),
-                N_Evals=("Score %", "count")
-            ).reset_index().sort_values(["Team","Evaluatee"])
+            method = current_app.config.get("SCORING_METHOD", "mean")
+            trim_f = float(current_app.config.get("SCORING_TRIM_FRACTION", 0.0) or 0.0)
+            df_scores = aggregate_scores_df(df_eval, method=method, trim_fraction=trim_f)
         else:
             df_scores = pd.DataFrame(columns=["Evaluatee","Team","Avg_Score_Pct","N_Evals"])
+
+        # Apply curved grading if enabled
+        curve_enabled = bool(current_app.config.get("CURVE_ENABLED", True))
+        if curve_enabled and not df_scores.empty:
+            protect = float(current_app.config.get("CURVE_PROTECT_THRESHOLD", 80.0) or 80.0)
+            k = float(current_app.config.get("CURVE_K", 0.5) or 0.5)
+            df_scores, curve_stats = apply_curve_scores(df_scores, protect_threshold=protect, k=k)
+        else:
+            curve_stats = {"mean": 0.0, "std": 0.0, "k": 0.0, "protect_threshold": 80.0}
 
         summaries = []
         by_student_comments = {}
@@ -390,6 +422,10 @@ def create_app():
             df_raw.to_excel(writer, sheet_name="RawFeedback", index=False)
             df_scores.to_excel(writer, sheet_name="Scores", index=False)
             df_sum.to_excel(writer, sheet_name="Summaries", index=False)
+            # Curve stats
+            pd.DataFrame([
+                {"Mean": curve_stats.get("mean"), "Std": curve_stats.get("std"), "k": curve_stats.get("k"), "Protect_Threshold": curve_stats.get("protect_threshold")}
+            ]).to_excel(writer, sheet_name="Curve", index=False)
         output.seek(0)
         filename = f"peer-eval-report-round-{r.id}.xlsx"
         return send_file(output, as_attachment=True, download_name=filename, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
