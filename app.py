@@ -21,57 +21,69 @@ from sqlalchemy import or_
 
 load_dotenv()
 
-# Prebuilt rubric template (sponsor-style detailed anchors)
+# Prebuilt rubric template (matches sponsor PDF exactly)
 PREBUILT_RUBRIC_ITEMS = [
-    {
-        "criterion": "Quality of Work",
-        "description": (
-            "Definition: Thoroughness and accuracy of deliverables. "
-            "Anchors: 0 – work is largely incorrect or missing; 3 – meets core requirements with minor issues; "
-            "5 – exceptionally thorough, accurate, and polished."
-        ),
-        "weight": 2.0,
-        "max_score": 5,
-    },
-    {
-        "criterion": "Timeliness",
-        "description": (
-            "Definition: Reliability in meeting deadlines and attending meetings. "
-            "Anchors: 0 – routinely late/absent; 3 – generally on time with occasional lapses; "
-            "5 – consistently on time and dependable."
-        ),
-        "weight": 1.5,
-        "max_score": 5,
-    },
-    {
-        "criterion": "Collaboration",
-        "description": (
-            "Definition: Team communication and support. "
-            "Anchors: 0 – unresponsive or obstructive; 3 – communicates and contributes adequately; "
-            "5 – proactively supports teammates and elevates team outcomes."
-        ),
-        "weight": 2.0,
-        "max_score": 5,
-    },
-    {
-        "criterion": "Initiative",
-        "description": (
-            "Definition: Ownership and proactive contribution. "
-            "Anchors: 0 – needs prompting to complete tasks; 3 – completes assigned tasks without much prompting; "
-            "5 – independently identifies and drives improvements beyond scope."
-        ),
-        "weight": 1.5,
-        "max_score": 5,
-    },
     {
         "criterion": "Professionalism",
         "description": (
-            "Definition: Respectful, constructive, and ethical behavior. "
-            "Anchors: 0 – disrespectful or unethical behavior; 3 – generally respectful and professional; "
-            "5 – exemplary professionalism and integrity."
+            "How consistently did the team member demonstrate professional behavior throughout the project? "
+            "Consider: respect, punctuality, meeting deadlines, and using technology appropriately. "
+            "Scale: 5 – Always behaved professionally; 4 – Behaved professionally most of the time; "
+            "3 – Behaved professionally some of the time; 2 – Rarely behaved professionally; 1 – Did not behave professionally."
         ),
         "weight": 1.0,
         "max_score": 5,
+    },
+    {
+        "criterion": "Communication",
+        "description": (
+            "How effectively did the team member communicate? Consider: constructive dialogue, listening skills, "
+            "feedback quality, and positive interactions. "
+            "Scale: 5 – Communicated effectively at all times; 4 – Communicated effectively most of the time; "
+            "3 – Communicated effectively some of the time; 2 – Communicated ineffectively; 1 – Did not communicate effectively."
+        ),
+        "weight": 1.0,
+        "max_score": 5,
+    },
+    {
+        "criterion": "Work Ethic",
+        "description": (
+            "Was the team member committed to completing their assigned work and responsibilities? "
+            "Scale: 5 – Excellent work ethic; 4 – Above average work ethic; 3 – Average work ethic; "
+            "2 – Below average work ethic; 1 – Poor work ethic."
+        ),
+        "weight": 1.0,
+        "max_score": 5,
+    },
+    {
+        "criterion": "Content Knowledge & Skills",
+        "description": (
+            "Did the team member demonstrate the knowledge and skills required for the project? "
+            "Consider: research ability, subject understanding, role flexibility, and technology use. "
+            "Scale: 5 – Excellent knowledge and skill; 4 – Above average knowledge and skill; 3 – Average knowledge and skill; "
+            "2 – Below average knowledge and skill; 1 – Lacked necessary knowledge and skill."
+        ),
+        "weight": 1.0,
+        "max_score": 5,
+    },
+    {
+        "criterion": "Overall Contribution",
+        "description": (
+            "How much did the team member contribute to the success of the project overall? "
+            "Scale: 5 – Excellent contribution; 4 – Above average contribution; 3 – Average contribution; "
+            "2 – Below average contribution; 1 – Minimal contribution."
+        ),
+        "weight": 1.0,
+        "max_score": 5,
+    },
+    {
+        "criterion": "Participation",
+        "description": (
+            "How actively did the team member participate in meetings, discussions, and assigned tasks? "
+            "Scale: 4 – Participated fully; 3 – Participated somewhat; 2 – Rarely participated; 1 – Hindered the group."
+        ),
+        "weight": 1.0,
+        "max_score": 4,
     },
 ]
 
@@ -249,11 +261,12 @@ def create_app():
                 flash("Criterion is required.", "warning")
                 return redirect(request.url)
             if not description:
-                flash("Description is required and must include clear 0/3/5 anchors.", "warning")
+                flash("Description is required.", "warning")
                 return redirect(request.url)
             desc_lower = description.lower()
-            if not ("0" in desc_lower and "3" in desc_lower and "5" in desc_lower):
-                flash("Please include anchor hints for 0, 3, and 5 in the description.", "warning")
+            # Encourage anchors for 1 and max score
+            if not ("1" in desc_lower and str(max_score) in desc_lower):
+                flash(f"Please include anchor hints for 1 and {max_score} in the description.", "warning")
                 return redirect(request.url)
             if weight <= 0:
                 flash("Weight must be greater than 0.", "warning")
@@ -305,12 +318,16 @@ def create_app():
                 desc = (row.get("description", "") or "").strip()
                 if not desc:
                     db.session.rollback()
-                    flash("Each row must include a non-empty description with 0/3/5 anchors.", "danger")
+                    flash("Each row must include a non-empty description with rating anchors.", "danger")
                     return redirect(request.url)
                 dl = desc.lower()
-                if not ("0" in dl and "3" in dl and "5" in dl):
+                try:
+                    row_max = int(row.get("max_score") or 5)
+                except Exception:
+                    row_max = 5
+                if not ("1" in dl and str(row_max) in dl):
                     db.session.rollback()
-                    flash("Descriptions must include anchors for 0, 3, and 5 (e.g., '0 – ...; 3 – ...; 5 – ...').", "danger")
+                    flash(f"Descriptions should include anchors for 1 and {row_max}.", "danger")
                     return redirect(request.url)
                 db.session.add(RubricItem(
                     rubric_id=r.id,

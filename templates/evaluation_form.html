@@ -14,7 +14,7 @@
   <hr>
   <form method="post">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <p style="margin: 6px 0 10px 0;"><small>Use the 0–{{ rubric.items[0].max_score if rubric.items and rubric.items[0].max_score else 5 }} scale and follow each criterion’s description for what <b>0</b>, <b>3</b>, and <b>5</b> mean.</small></p>
+    <p style="margin: 6px 0 10px 0;"><small>Use the 1–{{ rubric.items[0].max_score if rubric.items and rubric.items[0].max_score else 5 }} scale and follow each criterion’s description for what <b>1</b> and <b>{{ rubric.items[0].max_score if rubric.items and rubric.items[0].max_score else 5 }}</b> mean.</small></p>
     <table class="table">
       <tr><th>Criterion</th><th>Description</th><th>Score</th></tr>
       {% for item in rubric.items %}
@@ -23,12 +23,12 @@
         <td>{{ item.description or "" }}</td>
         <td>
           <div role="radiogroup" aria-label="{{ item.criterion }} score">
-            {% for s in range(0, item.max_score + 1) %}
+            {% for s in range(1, item.max_score + 1) %}
               <label style="margin-right:10px;">
-                <input type="radio" name="criterion_{{ item.id }}" value="{{ s }}" {% if s == 0 %}required{% endif %}> {{ s }}
+                <input type="radio" name="criterion_{{ item.id }}" value="{{ s }}" {% if s == 1 %}required{% endif %}> {{ s }}
               </label>
             {% endfor %}
-            <small>0 - {{ item.max_score }}</small>
+            <small>1 - {{ item.max_score }}</small>
           </div>
         </td>
       </tr>
