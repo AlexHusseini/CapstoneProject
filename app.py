@@ -296,6 +296,28 @@ def create_app():
         db.session.delete(item); db.session.commit()
         flash("Item deleted.", "info")
         return redirect(url_for("edit_rubric", rubric_id=rubric_id))
+
+    @app.route("/rubrics/<int:rubric_id>/update_item/<int:item_id>", methods=["POST"])
+    @login_required
+    def update_rubric_item(rubric_id, item_id):
+        item = db.session.get(RubricItem, item_id) or abort(404)
+        try:
+            weight_val = float(request.form.get("weight", str(item.weight)))
+            max_val = int(request.form.get("max_score", str(item.max_score)))
+        except ValueError:
+            flash("Weight must be numeric and Max Score must be an integer.", "danger")
+            return redirect(url_for("edit_rubric", rubric_id=rubric_id))
+        if weight_val <= 0:
+            flash("Weight must be greater than 0.", "warning")
+            return redirect(url_for("edit_rubric", rubric_id=rubric_id))
+        if max_val < 1:
+            flash("Max Score must be at least 1.", "warning")
+            return redirect(url_for("edit_rubric", rubric_id=rubric_id))
+        item.weight = weight_val
+        item.max_score = max_val
+        db.session.commit()
+        flash("Item updated.", "success")
+        return redirect(url_for("edit_rubric", rubric_id=rubric_id))
     
     @app.route("/rubrics/upload", methods=["GET","POST"])
     @login_required
