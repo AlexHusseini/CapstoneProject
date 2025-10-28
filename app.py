@@ -16,9 +16,64 @@ from models import (
 from mailer import send_email
 from nlp import detect_red_flags, simple_summarize, openai_summarize
 from scoring import compute_weighted_percentage, aggregate_scores_df, apply_curve_scores
+from flask_wtf.csrf import CSRFProtect, generate_csrf
 from sqlalchemy import or_
 
 load_dotenv()
+
+# Prebuilt rubric template (sponsor-style detailed anchors)
+PREBUILT_RUBRIC_ITEMS = [
+    {
+        "criterion": "Quality of Work",
+        "description": (
+            "Definition: Thoroughness and accuracy of deliverables. "
+            "Anchors: 0 – work is largely incorrect or missing; 3 – meets core requirements with minor issues; "
+            "5 – exceptionally thorough, accurate, and polished."
+        ),
+        "weight": 2.0,
+        "max_score": 5,
+    },
+    {
+        "criterion": "Timeliness",
+        "description": (
+            "Definition: Reliability in meeting deadlines and attending meetings. "
+            "Anchors: 0 – routinely late/absent; 3 – generally on time with occasional lapses; "
+            "5 – consistently on time and dependable."
+        ),
+        "weight": 1.5,
+        "max_score": 5,
+    },
+    {
+        "criterion": "Collaboration",
+        "description": (
+            "Definition: Team communication and support. "
+            "Anchors: 0 – unresponsive or obstructive; 3 – communicates and contributes adequately; "
+            "5 – proactively supports teammates and elevates team outcomes."
+        ),
+        "weight": 2.0,
+        "max_score": 5,
+    },
+    {
+        "criterion": "Initiative",
+        "description": (
+            "Definition: Ownership and proactive contribution. "
+            "Anchors: 0 – needs prompting to complete tasks; 3 – completes assigned tasks without much prompting; "
+            "5 – independently identifies and drives improvements beyond scope."
+        ),
+        "weight": 1.5,
+        "max_score": 5,
+    },
+    {
+        "criterion": "Professionalism",
+        "description": (
+            "Definition: Respectful, constructive, and ethical behavior. "
+            "Anchors: 0 – disrespectful or unethical behavior; 3 – generally respectful and professional; "
+            "5 – exemplary professionalism and integrity."
+        ),
+        "weight": 1.0,
+        "max_score": 5,
+    },
+]
 
 def create_app():
     app = Flask(__name__, instance_relative_config=True, template_folder="templates", static_folder="static")
@@ -47,6 +102,13 @@ def create_app():
 
     app.config.from_object(Config)
     os.makedirs(app.instance_path, exist_ok=True)
+
+    # CSRF protection for all POST forms
+    CSRFProtect(app)
+
+    @app.context_processor
+    def inject_csrf_token():
+        return {"csrf_token": generate_csrf}
 
     db.init_app(app)
 
@@ -145,9 +207,24 @@ def create_app():
     @login_required
     def rubrics():
         if request.method == "POST":
-            name = request.form.get("name","").strip() or f"Rubric {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+            name = request.form.get("name", "").strip() or f"Rubric {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+            use_prebuilt = str(request.form.get("use_prebuilt", "")).lower() in {"1", "true", "on", "yes"}
             r = Rubric(name=name, active=True)
-            db.session.add(r); db.session.commit()
+            db.session.add(r)
+            db.session.flush()
+            if use_prebuilt:
+                for it in PREBUILT_RUBRIC_ITEMS:
+                    db.session.add(RubricItem(
+                        rubric_id=r.id,
+                        criterion=it["criterion"],
+                        description=it["description"],
+                        weight=float(it["weight"]),
+                        max_score=int(it["max_score"]),
+                    ))
+                db.session.commit()
+                flash("Rubric created from prebuilt template.", "success")
+                return redirect(url_for("edit_rubric", rubric_id=r.id))
+            db.session.commit()
             flash("Rubric created. Add items below.", "success")
             return redirect(url_for("edit_rubric", rubric_id=r.id))
         rubrics = Rubric.query.all()
@@ -170,6 +247,13 @@ def create_app():
                 return redirect(request.url)
             if not criterion:
                 flash("Criterion is required.", "warning")
+                return redirect(request.url)
+            if not description:
+                flash("Description is required and must include clear 0/3/5 anchors.", "warning")
+                return redirect(request.url)
+            desc_lower = description.lower()
+            if not ("0" in desc_lower and "3" in desc_lower and "5" in desc_lower):
+                flash("Please include anchor hints for 0, 3, and 5 in the description.", "warning")
                 return redirect(request.url)
             if weight <= 0:
                 flash("Weight must be greater than 0.", "warning")
@@ -211,17 +295,27 @@ def create_app():
             import csv, io
             decoded = file.stream.read().decode("utf-8")
             reader = csv.DictReader(io.StringIO(decoded))
-            required = {"criterion", "weight", "max_score"}
+            required = {"criterion", "description", "weight", "max_score"}
             if not required.issubset(set(reader.fieldnames or [])):
                 flash(f"CSV must include columns: {', '.join(required)}", "danger")
                 return redirect(request.url)
             r = Rubric(name=rname, active=True)
             db.session.add(r); db.session.flush()
             for row in reader:
+                desc = (row.get("description", "") or "").strip()
+                if not desc:
+                    db.session.rollback()
+                    flash("Each row must include a non-empty description with 0/3/5 anchors.", "danger")
+                    return redirect(request.url)
+                dl = desc.lower()
+                if not ("0" in dl and "3" in dl and "5" in dl):
+                    db.session.rollback()
+                    flash("Descriptions must include anchors for 0, 3, and 5 (e.g., '0 – ...; 3 – ...; 5 – ...').", "danger")
+                    return redirect(request.url)
                 db.session.add(RubricItem(
                     rubric_id=r.id,
                     criterion=row["criterion"].strip(),
-                    description=row.get("description","").strip(),
+                    description=desc,
                     weight=float(row["weight"] or 1),
                     max_score=int(row["max_score"] or 5)
                 ))

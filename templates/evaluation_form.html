@@ -13,6 +13,8 @@
   <p><b>Evaluatee:</b> {{ t.evaluatee.full_name }} ({{ t.evaluatee.email }})</p>
   <hr>
   <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <p style="margin: 6px 0 10px 0;"><small>Use the 0–{{ rubric.items[0].max_score if rubric.items and rubric.items[0].max_score else 5 }} scale and follow each criterion’s description for what <b>0</b>, <b>3</b>, and <b>5</b> mean.</small></p>
     <table class="table">
       <tr><th>Criterion</th><th>Description</th><th>Score</th></tr>
       {% for item in rubric.items %}

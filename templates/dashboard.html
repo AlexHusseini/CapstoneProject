@@ -19,6 +19,7 @@
       <p><a class="btn" href="{{ url_for('rubrics') }}">Manage</a></p>
     </div>
   </div>
+  
 </section>
 
 <h3>Evaluation Rounds</h3>
@@ -39,6 +40,7 @@
 
           {% if r.status != 'closed' %}
           <form method="post" action="{{ url_for('close_round', round_id=r.id) }}" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn equal" type="submit">Close Round</button>
           </form>
           {% endif %}
@@ -48,6 +50,7 @@
               action="{{ url_for('delete_round', round_id=r.id) }}"
               class="delete-form"
               onsubmit="return confirm('Delete this round and ALL its responses? This cannot be undone. Are you sure?');">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button class="btn icon danger" type="submit" aria-label="Delete round" title="Delete round">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
               <path d="M18 6L6 18" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>

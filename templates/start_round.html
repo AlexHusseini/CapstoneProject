@@ -3,6 +3,7 @@
 <h2>Start Evaluation Round</h2>
 <div class="card">
   <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <label>Round Name 
       <div style="margin-top: 10px;">
         <input type="text" name="name" placeholder="e.g., Fall 2025 - Sprint 1">

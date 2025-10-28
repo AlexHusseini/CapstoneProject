@@ -1,7 +1,7 @@
 criterion,description,weight,max_score
 
-Quality of Work,Completes tasks thoroughly and accurately,2,5
-Timeliness,Meets deadlines and attends meetings on time,1.5,5
-Collaboration,Communicates well and supports teammates,2,5
-Initiative,Takes ownership and goes beyond minimum requirements,1.5,5
-Professionalism,"Respectful, constructive, and ethical",1,5
+Quality of Work,"Definition: Thoroughness and accuracy of deliverables. Anchors: 0 – work is largely incorrect or missing; 3 – meets core requirements with minor issues; 5 – exceptionally thorough, accurate, and polished.",2,5
+Timeliness,"Definition: Reliability in meeting deadlines and attending meetings. Anchors: 0 – routinely late/absent; 3 – generally on time with occasional lapses; 5 – consistently on time and dependable.",1.5,5
+Collaboration,"Definition: Team communication and support. Anchors: 0 – unresponsive or obstructive; 3 – communicates and contributes adequately; 5 – proactively supports teammates and elevates team outcomes.",2,5
+Initiative,"Definition: Ownership and proactive contribution. Anchors: 0 – needs prompting to complete tasks; 3 – completes assigned tasks without much prompting; 5 – independently identifies and drives improvements beyond scope.",1.5,5
+Professionalism,"Definition: Respectful, constructive, and ethical behavior. Anchors: 0 – disrespectful or unethical behavior; 3 – generally respectful and professional; 5 – exemplary professionalism and integrity.",1,5

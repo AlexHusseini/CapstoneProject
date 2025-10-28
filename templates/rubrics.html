@@ -7,11 +7,19 @@
       <h3>Create New</h3>
     </div>
     <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label>Name 
         <div style="margin-top: 10px;">
           <input type="text" name="name" placeholder="Default Rubric" required>
         </div>
       </label>
+      <div style="margin-top: 10px;">
+        <label style="display:flex; align-items:center; gap:8px;">
+          <input type="checkbox" name="use_prebuilt" value="1">
+          <span>Use prebuilt rubric (sponsor template)</span>
+        </label>
+        <p style="margin:6px 0 0 0;"><small>Creates a rubric pre-filled with detailed criteria and 0/3/5 anchors.</small></p>
+      </div>
       <div style="margin-top: 12px;">
         <div style="margin-bottom: 45px;">
           <button type="submit">Create</button>
@@ -25,6 +33,7 @@
       <h3>Upload CSV</h3>
     </div>
     <form method="post" action="{{ url_for('upload_rubric') }}" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <label>
         Name 
         <div style="margin-top: 10px;">
@@ -36,7 +45,7 @@
         <button type="submit" class="btn">Upload</button>
       </div>
     </form>
-    <p>CSV columns required: criterion,weight,max_score (optional: description)</p>
+    <p>CSV columns required: <code>criterion,description,weight,max_score</code>. The description must include anchors for <b>0</b>, <b>3</b>, and <b>5</b>.</p>
   </div>
 </section>
 
@@ -50,6 +59,7 @@
       <form method="post" action="{{ url_for('delete_rubric', rubric_id=r.id) }}"
             style="display:inline" 
             onsubmit="return confirm('Delete rubric {{ r.name }}?');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button class="btn icon small danger" type="submit" aria-label="Delete rubric" title="Delete rubric">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
               <path d="M18 6L6 18" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>

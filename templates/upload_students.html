@@ -5,6 +5,7 @@
   <div class="card">
     <h3>Upload CSV</h3>
     <form method="post" action="{{ url_for('upload_students') }}" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="file" name="file" accept=".csv" required>
       <div style="margin-top: 12px;">
         <button type="submit">Upload</button>
