@@ -5,57 +5,29 @@ It sends unique evaluation forms to students, collects results, and generates a 
 
 ---
 
-## Quick Start (Local)
+## Quick Start (Local) — Minimal Setup
 
 ### 1) Prerequisites
 - Python **3.10+** (3.11 recommended)
-- Git (optional)
 
-### 2) Get the code
-```bash
-# If you downloaded the zip, unzip it and cd into the folder
-cd peer-eval
+### 2) Run (Windows PowerShell)
+```powershell
+cd C:\Users\alexa\CapstoneProject
+python -m pip install -r requirements.txt   # first time only
+python app.py                               # starts the server
 ```
+Open your browser to **http://127.0.0.1:5000**
 
-### 3) Create & activate a virtual environment
-```bash
-python -m venv .venv
-# Windows
-.venv\Scripts\activate
-# macOS/Linux
-source .venv/bin/activate
-```
-
-### 4) Install dependencies
-```bash
-pip install -r requirements.txt
-```
-
-### 5) Configure environment
-Copy `.env.example` to `.env` and edit if needed:
-```bash
-cp .env.example .env
-```
-- For **development**, you can leave MAIL settings blank; emails will appear in **Dev Outbox** inside the app.
-- Set `FLASK_SECRET_KEY` to a random value for security.
-- Optionally set `OPENAI_API_KEY` for improved summaries.
-
-### 6) Initialize database
-```bash
-python app.py  # this creates the SQLite db on first run and starts the server (Ctrl+C to stop)
-```
-
-### 7) Create an admin (professor) account
-```bash
+### 3) Create an admin (first run)
+```powershell
 python app.py --init-admin
 # Follow the prompts to create login credentials
 ```
 
-### 8) Run the app
-```bash
-python app.py
-```
-Open your browser to **http://127.0.0.1:5000**
+Notes
+- No virtual environment is required for this demo. The command above installs dependencies globally for your user Python.
+- No SMTP setup is required; emails appear in the app under **Outbox**.
+- Optional `.env`: create a `.env` file to override settings like `FLASK_SECRET_KEY`, `OPENAI_API_KEY`, or curve knobs (`CURVE_PROTECT_THRESHOLD`, `CURVE_K`).
 
 ---
 
@@ -67,7 +39,8 @@ Open your browser to **http://127.0.0.1:5000**
 2. **Upload Students** (`Students → Upload`) using a CSV with columns: `first_name,last_name,email,team`.  
    - A sample is provided at `data/sample_students.csv`.
 3. **Create or Upload a Rubric** (`Rubrics`).  
-   - Create blank rubric and add items, or upload `data/sample_rubric.csv` with columns `criterion,weight,max_score` (optional: `description`).
+   - Create blank rubric and add items, or check **Use prebuilt rubric (sponsor template)** to auto-fill detailed criteria and 0/3/5 anchors.
+   - You can also upload `data/sample_rubric.csv` with columns `criterion,description,weight,max_score`.
 4. **Start Evaluation Round** (`Start Round`).  
    - Choose a rubric and click **Generate & Send Forms**.
    - The system creates one **unique form per evaluatee**, and **sends links to each team member**. In development, links show up under **Outbox**.
