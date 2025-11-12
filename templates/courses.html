@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Courses</h2>
+<section class="grid">
+  <div class="card">
+    <h3>Create Course</h3>
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label>Name
+        <div style="margin-top: 10px;">
+          <input type="text" name="name" placeholder="SWE 4724" required>
+        </div>
+      </label>
+      <label style="margin-top:10px;">Section
+        <div style="margin-top: 10px;">
+          <input type="text" name="section" placeholder="W01">
+        </div>
+      </label>
+      <div style="margin-top: 12px;">
+        <button type="submit" class="btn">Create</button>
+      </div>
+    </form>
+  </div>
+</section>
+
+<h3 style="margin-top: 16px;">Existing Courses</h3>
+<ul>
+  {% for c in courses %}
+    <li>
+      <a href="{{ url_for('course_detail', course_id=c.id) }}">{{ c.display_name }}</a>
+      ({{ counts.get(c.id, 0) }})
+      <a class="btn" style="margin-left: 8px;" href="{{ url_for('course_detail', course_id=c.id) }}">Manage</a>
+    </li>
+  {% else %}
+    <li>No courses yet.</li>
+  {% endfor %}
+{% endblock %}
+

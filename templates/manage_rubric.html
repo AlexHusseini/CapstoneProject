@@ -12,15 +12,16 @@
     <td>{{ it.criterion }}</td>
     <td>{{ it.description or "" }}</td>
     <td>
-      <form method="post" action="{{ url_for('update_rubric_item', rubric_id=rubric.id, item_id=it.id) }}" style="display:inline-flex; gap:8px; align-items:center;">
+      <form id="item-form-{{ it.id }}" method="post" action="{{ url_for('update_rubric_item', rubric_id=rubric.id, item_id=it.id) }}" style="display:inline-flex; gap:8px; align-items:center;">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="number" name="weight" step="0.1" value="{{ it.weight }}" style="width:80px;">
-        <input type="number" name="max_score" min="1" value="{{ it.max_score }}" style="width:80px;">
-        <button class="btn" type="submit">Save</button>
       </form>
     </td>
-    <td></td>
     <td>
+      <input form="item-form-{{ it.id }}" type="number" name="max_score" min="1" value="{{ it.max_score }}" style="width:80px;">
+    </td>
+    <td>
+      <button form="item-form-{{ it.id }}" class="btn" type="submit">Save</button>
       <form method="post" action="{{ url_for('delete_rubric_item', rubric_id=rubric.id, item_id=it.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button class="btn danger" type="submit">Delete</button>

@@ -26,6 +26,7 @@ class Student(db.Model):
     last_name = db.Column(db.String(120), nullable=False)
     email = db.Column(db.String(255), unique=True, nullable=False)
     team = db.Column(db.String(120), nullable=False)
+    course_id = db.Column(db.Integer, db.ForeignKey("course.id"), nullable=True)
 
     @property
     def full_name(self):
@@ -36,6 +37,18 @@ class Rubric(db.Model):
     name = db.Column(db.String(255), nullable=False)
     active = db.Column(db.Boolean, default=True)
     items = db.relationship("RubricItem", backref="rubric", cascade="all, delete-orphan")
+
+class Course(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), nullable=False)
+    section = db.Column(db.String(50), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    students = db.relationship("Student", backref="course")
+
+    @property
+    def display_name(self):
+        return f"{self.name} section {self.section}" if self.section else self.name
 
 class RubricItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)

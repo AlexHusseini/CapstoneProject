@@ -11,13 +11,14 @@ import pandas as pd
 from config import Config
 from models import (
     db, User, Student, Rubric, RubricItem, EvalRound,
-    EvaluationToken, EvaluationResponse, DevOutbox
+    EvaluationToken, EvaluationResponse, DevOutbox, Course
 )
 from mailer import send_email
 from nlp import detect_red_flags, simple_summarize, openai_summarize
 from scoring import compute_weighted_percentage, aggregate_scores_df, apply_curve_scores
 from flask_wtf.csrf import CSRFProtect, generate_csrf
-from sqlalchemy import or_
+from sqlalchemy import or_, text
+from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
 load_dotenv()
 
@@ -150,6 +151,69 @@ def create_app():
             flash("Invalid credentials.", "danger")
         return render_template("login.html")
 
+    def _password_serializer():
+        secret = current_app.config.get("SECRET_KEY") or "dev-secret-key"
+        return URLSafeTimedSerializer(secret_key=secret, salt="pwd-reset")
+
+    @app.route("/forgot", methods=["GET", "POST"])
+    def forgot_password():
+        if request.method == "POST":
+            email = (request.form.get("email") or "").strip().lower()
+            # Always respond the same to avoid account enumeration
+            try:
+                user = User.query.filter_by(email=email).first()
+                if user:
+                    s = _password_serializer()
+                    token = s.dumps(email)
+                    reset_url = request.url_root.rstrip("/") + url_for("reset_password", token=token)
+                    body = f"""We received a request to reset your password.
+
+If you made this request, click the link below to set a new password:
+{reset_url}
+
+This link will expire in 60 minutes. If you did not request a reset, you can ignore this email.
+"""
+                    send_email(email, "Password Reset Instructions", body)
+            except Exception:
+                # Intentionally suppress errors to avoid information leakage
+                pass
+            flash("If that email exists, we have sent reset instructions.", "info")
+            return redirect(url_for("login"))
+        return render_template("forgot_password.html")
+
+    @app.route("/reset/<token>", methods=["GET", "POST"])
+    def reset_password(token):
+        s = _password_serializer()
+        email = None
+        try:
+            email = s.loads(token, max_age=3600)
+        except SignatureExpired:
+            flash("Reset link has expired. Please request a new one.", "warning")
+            return redirect(url_for("forgot_password"))
+        except BadSignature:
+            flash("Invalid reset link.", "danger")
+            return redirect(url_for("forgot_password"))
+
+        if request.method == "POST":
+            pw1 = (request.form.get("password") or "").strip()
+            pw2 = (request.form.get("password2") or "").strip()
+            if not pw1 or len(pw1) < 6:
+                flash("Password must be at least 6 characters.", "warning")
+                return redirect(request.url)
+            if pw1 != pw2:
+                flash("Passwords do not match.", "warning")
+                return redirect(request.url)
+            user = User.query.filter_by(email=email).first()
+            if not user:
+                flash("Account not found.", "danger")
+                return redirect(url_for("forgot_password"))
+            user.set_password(pw1)
+            db.session.commit()
+            flash("Password updated. You can now log in.", "success")
+            return redirect(url_for("login"))
+
+        return render_template("reset_password.html", token=token, email=email)
+
     @app.route("/logout")
     @login_required
     def logout():
@@ -161,14 +225,14 @@ def create_app():
     def dashboard():
         rounds = EvalRound.query.order_by(EvalRound.created_at.desc()).all()
         students_count = Student.query.count()
+        courses_count = Course.query.count()
         rubrics = Rubric.query.all()
-        return render_template("dashboard.html", rounds=rounds, students_count=students_count, rubrics=rubrics)
+        return render_template("dashboard.html", rounds=rounds, students_count=students_count, courses_count=courses_count, rubrics=rubrics)
 
     @app.route("/students")
     @login_required
     def students():
-        all_students = Student.query.order_by(Student.last_name, Student.first_name).all()
-        return render_template("upload_students.html", students=all_students)
+        return redirect(url_for("courses"))
 
     @app.route("/students/upload", methods=["GET", "POST"])
     @login_required
@@ -187,6 +251,7 @@ def create_app():
                 flash(f"CSV must include columns: {', '.join(required)}", "danger")
                 return redirect(request.url)
 
+            # Global replace (legacy behavior)
             Student.query.delete()
             db.session.commit()
 
@@ -214,6 +279,65 @@ def create_app():
             return redirect(url_for("upload_students"))
         all_students = Student.query.order_by(Student.last_name, Student.first_name).all()
         return render_template("upload_students.html", students=all_students)
+
+    @app.route("/courses", methods=["GET", "POST"])
+    @login_required
+    def courses():
+        if request.method == "POST":
+            name = (request.form.get("name") or "").strip()
+            section = (request.form.get("section") or "").strip() or None
+            if not name:
+                flash("Course name is required.", "warning")
+                return redirect(request.url)
+            c = Course(name=name, section=section)
+            db.session.add(c); db.session.commit()
+            flash("Course created.", "success")
+            return redirect(url_for("courses"))
+        courses = Course.query.order_by(Course.name, Course.section).all()
+        counts = {c.id: Student.query.filter_by(course_id=c.id).count() for c in courses}
+        return render_template("courses.html", courses=courses, counts=counts)
+
+    @app.route("/courses/<int:course_id>", methods=["GET"])
+    @login_required
+    def course_detail(course_id):
+        course = db.session.get(Course, course_id) or abort(404)
+        students = Student.query.filter_by(course_id=course_id).order_by(Student.last_name, Student.first_name).all()
+        return render_template("course_students.html", course=course, students=students)
+
+    @app.route("/courses/<int:course_id>/upload", methods=["POST"])
+    @login_required
+    def upload_course_students(course_id):
+        course = db.session.get(Course, course_id) or abort(404)
+        file = request.files.get("file")
+        if not file:
+            flash("Please choose a CSV file.", "warning")
+            return redirect(url_for("course_detail", course_id=course.id))
+        import csv, io
+        decoded = file.stream.read().decode("utf-8")
+        reader = csv.DictReader(io.StringIO(decoded))
+        required = {"first_name", "last_name", "email", "team"}
+        if not required.issubset(set(reader.fieldnames or [])):
+            flash(f"CSV must include columns: {', '.join(required)}", "danger")
+            return redirect(url_for("course_detail", course_id=course.id))
+        # Replace students for this course
+        Student.query.filter_by(course_id=course.id).delete()
+        db.session.commit()
+        added = 0
+        for row in reader:
+            email = row["email"].strip().lower()
+            if not email:
+                continue
+            s = Student(
+                first_name=row["first_name"].strip(),
+                last_name=row["last_name"].strip(),
+                email=email,
+                team=row["team"].strip(),
+                course_id=course.id,
+            )
+            db.session.add(s); added += 1
+        db.session.commit()
+        flash(f"Upload complete for {course.display_name}. {added} students added.", "success")
+        return redirect(url_for("course_detail", course_id=course.id))
 
     @app.route("/rubrics", methods=["GET","POST"])
     @login_required
@@ -362,6 +486,24 @@ def create_app():
             flash(f"Rubric '{r.name}' uploaded.", "success")
             return redirect(url_for("dashboard"))
         return render_template("upload_rubric.html")
+
+    @app.route("/download-sample/students")
+    @login_required
+    def download_sample_students():
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        path = os.path.join(base_dir, "data", "sample_students.csv")
+        if not os.path.exists(path):
+            abort(404)
+        return send_file(path, as_attachment=True, download_name="sample_students.csv")
+
+    @app.route("/download-sample/rubric")
+    @login_required
+    def download_sample_rubric():
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        path = os.path.join(base_dir, "data", "sample_rubric.csv")
+        if not os.path.exists(path):
+            abort(404)
+        return send_file(path, as_attachment=True, download_name="sample_rubric.csv")
 
     @app.route("/rounds/start", methods=["GET","POST"])
     @login_required
@@ -627,6 +769,30 @@ def create_app():
 def init_db(app):
     with app.app_context():
         db.create_all()
+        # Lightweight migration: add course_id to student if missing (SQLite-friendly)
+        try:
+            engine = db.engine
+            if engine.dialect.name == "sqlite":
+                cols = db.session.execute(text("PRAGMA table_info(student)")).fetchall()
+                col_names = {c[1] for c in cols}
+                if "course_id" not in col_names:
+                    db.session.execute(text("ALTER TABLE student ADD COLUMN course_id INTEGER"))
+                    db.session.commit()
+        except Exception:
+            db.session.rollback()
+        # Ensure a default course exists and backfill students without a course
+        default = Course.query.first()
+        if not default:
+            default = Course(name="Default Course", section=None)
+            db.session.add(default); db.session.commit()
+        try:
+            db.session.execute(
+                text("UPDATE student SET course_id = :cid WHERE course_id IS NULL"),
+                {"cid": default.id},
+            )
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
 
 def seed_admin(app, email: str, password: str):
     with app.app_context():
