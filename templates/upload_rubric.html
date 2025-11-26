@@ -5,7 +5,11 @@
 <form method="post" enctype="multipart/form-data">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <label>Name <input type="text" name="name" placeholder="Uploaded Rubric"></label>
-  <input type="file" name="file" accept=".csv" required>
+  <label style="margin-top:10px;">CSV File <span class="req">*</span>
+    <div style="margin-top: 10px;">
+      <input type="file" name="file" accept=".csv" required>
+    </div>
+  </label>
   <button type="submit">Upload</button>
 </form>
 <p><a href="{{ url_for('download_sample_rubric') }}">Download sample CSV</a></p>

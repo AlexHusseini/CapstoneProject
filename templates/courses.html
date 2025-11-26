@@ -6,7 +6,7 @@
     <h3>Create Course</h3>
     <form method="post">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <label>Name
+      <label>Name <span class="req">*</span>
         <div style="margin-top: 10px;">
           <input type="text" name="name" placeholder="SWE 4724" required>
         </div>

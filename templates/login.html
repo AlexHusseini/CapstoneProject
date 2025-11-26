@@ -6,10 +6,10 @@
     <h2 id="login-title" class="auth-title">Professor Login</h2>
     <form method="post" class="auth-form">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <label for="email">Email</label>
+      <label for="email">Email <span class="req">*</span></label>
       <input id="email" type="email" name="email" autocomplete="username" required>
 
-      <label for="password">Password</label>
+      <label for="password">Password <span class="req">*</span></label>
       <input id="password" type="password" name="password" autocomplete="current-password" required>
       <label style="display:flex; align-items:center; gap:8px; margin-top:2px;">
         <input type="checkbox" id="showpw" aria-controls="password">

@@ -8,7 +8,7 @@
     </div>
     <form method="post">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <label>Name 
+        <label>Name <span class="req">*</span>
         <div style="margin-top: 10px;">
           <input type="text" name="name" placeholder="Default Rubric" required>
         </div>
@@ -40,7 +40,11 @@
           <input type="text" name="name" placeholder="Uploaded Rubric">
         </div>
       </label>
-      <input type="file" name="file" accept=".csv" required>
+      <label style="margin-top:10px;">CSV File <span class="req">*</span>
+        <div style="margin-top: 10px;">
+          <input type="file" name="file" accept=".csv" required>
+        </div>
+      </label>
       <div style="margin-top: 12px;">
         <button type="submit" class="btn">Upload</button>
       </div>
