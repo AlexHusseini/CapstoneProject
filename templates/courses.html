@@ -6,7 +6,7 @@
     <h3>Create Course</h3>
     <form method="post">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <label>Name <span class="req">*</span>
+      <label>Name
         <div style="margin-top: 10px;">
           <input type="text" name="name" placeholder="SWE 4724" required>
         </div>
@@ -29,7 +29,7 @@
     <li>
       <a href="{{ url_for('course_detail', course_id=c.id) }}">{{ c.display_name }}</a>
       ({{ counts.get(c.id, 0) }})
-      <a class="btn" style="margin-left: 8px;" href="{{ url_for('course_detail', course_id=c.id) }}">Manage</a>
+      <a href="{{ url_for('course_detail', course_id=c.id) }}" style="margin-left: 8px; font-size: 14px; padding: 2px 6px; text-decoration: none; color: var(--accent); border: 1px solid var(--accent); border-radius: 4px; display: inline-block;">Manage</a>
     </li>
   {% else %}
     <li>No courses yet.</li>

@@ -91,7 +91,7 @@ def compute_letter_grade(percent: float) -> str:
         return "C"
     if p >= 60.0:
         return "D"
-    return "E"
+    return "F"
 
 
 def apply_curve_scores(

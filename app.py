@@ -510,8 +510,15 @@ This link will expire in 60 minutes. If you did not request a reset, you can ign
     def start_round():
         rubrics = Rubric.query.all()
         if request.method == "POST":
-            name = request.form.get("name","").strip() or f"Round {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+            name = request.form.get("name","").strip()
+            if not name:
+                flash("Round name is required.", "warning")
+                return redirect(request.url)
             rubric_id = int(request.form.get("rubric_id"))
+            rubric = db.session.get(Rubric, rubric_id)
+            if not rubric or len(rubric.items) == 0:
+                flash("Selected rubric must have at least one item.", "warning")
+                return redirect(request.url)
             selected_list_id = request.form.get("student_list_id")  
             r = EvalRound(name=name, rubric_id=rubric_id, status="active")
             db.session.add(r); db.session.flush()
@@ -594,7 +601,8 @@ This link will expire in 60 minutes. If you did not request a reset, you can ign
                     val = 0
                 val = max(0, min(item.max_score, val))
                 scores[str(item.id)] = val
-            resp = EvaluationResponse(token_id=t.id, scores=scores, comments=None)
+            comments = request.form.get("comments", "").strip() or None
+            resp = EvaluationResponse(token_id=t.id, scores=scores, comments=comments)
             t.submitted_at = datetime.utcnow()
             db.session.add(resp); db.session.commit()
             return render_template("evaluation_form.html", submitted=True, t=t, rubric=round.rubric)

@@ -5,44 +5,6 @@
 
 
 <h3>Items</h3>
-
-<div class="card" style="margin: 10px 0 16px 0;">
-  <h4 style="margin:0 0 8px 0;">Add Item</h4>
-  <form method="post" style="display:grid; grid-template-columns: 1fr; gap:10px;">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-    <label>Criterion <span class="req" aria-hidden="true">*</span>
-      <div style="margin-top: 6px;">
-        <input type="text" name="criterion" placeholder="e.g., Communication" required>
-      </div>
-    </label>
-
-    <label>Description <span class="req" aria-hidden="true">*</span>
-      <div style="margin-top: 6px;">
-        <textarea name="description" rows="4" placeholder="Define the criterion and include anchors for 1 and max score." required></textarea>
-      </div>
-      <small class="muted">Tip: include what a <b>1</b> and a <b>5</b> (or max) look like.</small>
-    </label>
-
-    <div style="display:grid; grid-template-columns: repeat(2, minmax(120px, 220px)); gap:12px;">
-      <label>Weight <span class="req" aria-hidden="true">*</span>
-        <div style="margin-top: 6px;">
-          <input type="number" name="weight" step="0.1" value="1" min="0.1" required>
-        </div>
-      </label>
-      <label>Max Score <span class="req" aria-hidden="true">*</span>
-        <div style="margin-top: 6px;">
-          <input type="number" name="max_score" value="5" min="1" required>
-        </div>
-      </label>
-    </div>
-
-    <div style="margin-top: 4px;">
-      <button type="submit" class="btn">Add Item</button>
-    </div>
-  </form>
-</div>
-
 <table class="table">
   <tr><th>Criterion</th><th>Description</th><th>Weight</th><th>Max</th><th></th></tr>
   {% for it in rubric.items %}
@@ -59,10 +21,10 @@
       <input form="item-form-{{ it.id }}" type="number" name="max_score" min="1" value="{{ it.max_score }}" style="width:80px;">
     </td>
     <td>
-      <button form="item-form-{{ it.id }}" class="btn" type="submit">Save</button>
-      <form method="post" action="{{ url_for('delete_rubric_item', rubric_id=rubric.id, item_id=it.id) }}">
+      <button form="item-form-{{ it.id }}" class="btn" type="submit" style="padding: 6px 12px; font-size: 14px;">Save</button>
+      <form method="post" action="{{ url_for('delete_rubric_item', rubric_id=rubric.id, item_id=it.id) }}" style="display: inline;">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button class="btn danger" type="submit">Delete</button>
+        <button class="btn danger" type="submit" style="padding: 6px 12px; font-size: 14px;">Delete</button>
       </form>
     </td>
   </tr>

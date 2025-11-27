@@ -180,11 +180,6 @@ footer{ text-align:center; padding:24px; opacity:0.7; }
 }
 
 /* Auth/Login layout */
-.req {
-    color: var(--danger);
-    font-weight: 700;
-}
-
 .auth-wrap {
     display: flex;
     align-items: center;
