@@ -14,7 +14,6 @@ from models import (
     EvaluationToken, EvaluationResponse, DevOutbox, Course
 )
 from mailer import send_email
-from nlp import detect_red_flags, simple_summarize, openai_summarize
 from scoring import compute_weighted_percentage, aggregate_scores_df, apply_curve_scores
 from flask_wtf.csrf import CSRFProtect, generate_csrf
 from sqlalchemy import or_, text
@@ -680,31 +679,10 @@ This link will expire in 60 minutes. If you did not request a reset, you can ign
         else:
             curve_stats = {"mean": 0.0, "std": 0.0, "k": 0.0, "protect_threshold": 80.0}
 
-        summaries = []
-        by_student_comments = {}
-        for row in rows:
-            if row["comments"]:
-                by_student_comments.setdefault((row["evaluatee"], row["team"]), []).append(row["comments"])
-        api_key = current_app.config.get("OPENAI_API_KEY")
-        for (eval_name, team), comments in by_student_comments.items():
-            if api_key:
-                summary = openai_summarize(api_key, comments)
-            else:
-                summary = simple_summarize(comments, max_sentences=3)
-            flags = sorted({f for c in comments for f in detect_red_flags(c)})
-            summaries.append({
-                "Evaluatee": eval_name,
-                "Team": team,
-                "Summary": summary,
-                "Red Flags": ", ".join(flags)
-            })
-        df_sum = pd.DataFrame(summaries) if summaries else pd.DataFrame(columns=["Evaluatee","Team","Summary","Red Flags"])
-
         output = BytesIO()
         with pd.ExcelWriter(output, engine="openpyxl") as writer:
             df_raw.to_excel(writer, sheet_name="RawFeedback", index=False)
             df_scores.to_excel(writer, sheet_name="Scores", index=False)
-            df_sum.to_excel(writer, sheet_name="Summaries", index=False)
             # Curve stats
             pd.DataFrame([
                 {"Mean": curve_stats.get("mean"), "Std": curve_stats.get("std"), "k": curve_stats.get("k"), "Protect_Threshold": curve_stats.get("protect_threshold")}

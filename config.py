@@ -19,9 +19,6 @@ class Config:
     MAIL_USE_TLS = os.getenv("MAIL_USE_TLS", "True").lower() == "true"
     MAIL_DEFAULT_SENDER = os.getenv("MAIL_DEFAULT_SENDER", "Peer Eval <no-reply@example.com>")
 
-    # NLP Options
-    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
     # Scoring options
     SCORING_METHOD = os.getenv("SCORING_METHOD", "mean")  # mean|median|trimmed_mean
     SCORING_TRIM_FRACTION = float(os.getenv("SCORING_TRIM_FRACTION", "0.0"))

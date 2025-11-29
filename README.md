@@ -1,7 +1,7 @@
 # Peer Evaluation Automation and Feedback Summary System
 
 A lightweight, beginner-friendly Flask app to automate peer evaluations for team-based courses.
-It sends unique evaluation forms to students, collects results, and generates a professor-friendly report with raw feedback, calculated scores, and optional summaries/red-flag detection.
+It sends unique evaluation forms to students, collects results, and generates a professor-friendly report with raw feedback and calculated scores.
 
 ---
 
@@ -27,7 +27,7 @@ python app.py --init-admin
 Notes
 - No virtual environment is required for this demo. The command above installs dependencies globally for your user Python.
 - No SMTP setup is required; emails appear in the app under **Outbox**.
-- Optional `.env`: create a `.env` file to override settings like `FLASK_SECRET_KEY`, `OPENAI_API_KEY`, or curve knobs (`CURVE_PROTECT_THRESHOLD`, `CURVE_K`).
+- Optional `.env`: create a `.env` file to override settings like `FLASK_SECRET_KEY` or curve knobs (`CURVE_PROTECT_THRESHOLD`, `CURVE_K`).
 
 ---
 
@@ -49,7 +49,6 @@ Notes
    - Excel file includes:
      - `RawFeedback` — one row per evaluation
      - `Scores` — calculated averages per student
-     - `Summaries` — optional NLP summary and keyword-based red-flag hints
 7. **Close Round** to stop new submissions.
 8. Red 'x' button to erase evaluation round from system.
 
@@ -78,14 +77,6 @@ Each evaluator receives a message that lists **one link per teammate** they need
 - For each evaluation, we compute a **weighted percentage**:
   \[ \text{score%} = 100 \times \frac{\sum_i (score_i / max_i)\cdot weight_i}{\sum_i weight_i} \]
 - `Scores` sheet averages this across evaluators per student.
-
----
-
-## NLP (Optional)
-
-- **Summaries**: If `OPENAI_API_KEY` is set, the app uses OpenAI for succinct summaries.
-  Otherwise it falls back to a simple frequency-based summarizer.
-- **Red Flags**: A minimal keyword scan highlights potential concerns (e.g., harassment, cheating). This is **not** a definitive detector—professors should review raw comments.
 
 ---
 
@@ -122,7 +113,6 @@ Quality of Work,Completes tasks thoroughly and accurately,2,5
 - **SQLite** via SQLAlchemy
 - **Email** via SMTP (or Outbox fallback)
 - **Excel** reports via pandas + openpyxl
-- **Optional** OpenAI summaries
 
 ```mermaid
 flowchart LR
@@ -142,4 +132,4 @@ flowchart LR
 1. Start a round with students loaded.
 2. Open **Outbox** and click/copy a link.
 3. Submit a few evaluations.
-4. Download the report and open it to see `RawFeedback`, `Scores`, and `Summaries`.
+4. Download the report and open it to see `RawFeedback` and `Scores`.

@@ -4,12 +4,12 @@
 <div class="card">
   <form method="post">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <label>Round Name 
+    <label>Round Name <span class="required-mark">*</span>
       <div style="margin-top: 10px;">
-        <input type="text" name="name" placeholder="e.g., Fall 2025 - Sprint 1">
+        <input type="text" name="name" placeholder="e.g., Fall 2025 - Sprint 1" required>
       </div>
     </label>
-    <label>Rubric
+    <label>Rubric <span class="required-mark">*</span>
       <div style="margin-top: 10px;">
         <select name="rubric_id" required>
           {% for r in rubrics %}
