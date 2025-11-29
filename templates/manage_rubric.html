@@ -38,23 +38,23 @@
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div>
       <label>
-        Criterion
+        Criterion <span class="required-mark">*</span>
         <input type="text" name="criterion" placeholder="Collaboration" required>
       </label>
     </div>
     <div>
       <label>
-        Description
+        Description <span class="required-mark">*</span>
         <textarea name="description" rows="4" placeholder="Describe what a 1 looks like and what a 5 looks like." required></textarea>
       </label>
     </div>
     <div style="display: flex; gap: 16px; flex-wrap: wrap;">
       <label style="flex:1; min-width: 140px;">
-        Weight
+        Weight <span class="required-mark">*</span>
         <input type="number" step="0.1" min="0.1" name="weight" value="1.0" required>
       </label>
       <label style="flex:1; min-width: 140px;">
-        Max Score
+        Max Score <span class="required-mark">*</span>
         <input type="number" min="1" name="max_score" value="5" required>
       </label>
     </div>

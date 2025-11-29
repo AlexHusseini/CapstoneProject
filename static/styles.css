@@ -179,6 +179,12 @@ footer{ text-align:center; padding:24px; opacity:0.7; }
   vertical-align: middle;
 }
 
+.required-mark {
+  color: #ff7b7b;
+  margin-left: 4px;
+  font-weight: 600;
+}
+
 .radio-scale {
   display: inline-flex;
   align-items: center;
