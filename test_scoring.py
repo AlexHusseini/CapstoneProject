@@ -119,3 +119,4 @@ def test_apply_curve_scores_empty():
     assert "Curved_Score_Pct" in result.columns
     assert "Letter_Grade" in result.columns
 
+

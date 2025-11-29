@@ -29,7 +29,10 @@
     <li>
       <a href="{{ url_for('course_detail', course_id=c.id) }}">{{ c.display_name }}</a>
       ({{ counts.get(c.id, 0) }})
-      <a href="{{ url_for('course_detail', course_id=c.id) }}" style="margin-left: 8px; font-size: 14px; padding: 2px 6px; text-decoration: none; color: var(--accent); border: 1px solid var(--accent); border-radius: 4px; display: inline-block;">Manage</a>
+      <a href="{{ url_for('course_detail', course_id=c.id) }}"
+         style="margin-left: 8px; font-size: 14px; padding: 2px 6px; text-decoration: none; background: var(--accent); color: #000; border: none; border-radius: 4px; display: inline-block;">
+        Manage
+      </a>
     </li>
   {% else %}
     <li>No courses yet.</li>

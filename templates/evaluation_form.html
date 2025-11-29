@@ -22,9 +22,9 @@
         <td>{{ item.criterion }}</td>
         <td>{{ item.description or "" }}</td>
         <td>
-          <div role="radiogroup" aria-label="{{ item.criterion }} score">
+          <div class="radio-scale" role="radiogroup" aria-label="{{ item.criterion }} score">
             {% for s in range(1, item.max_score + 1) %}
-              <label style="margin-right:10px;">
+              <label>
                 <input type="radio" name="criterion_{{ item.id }}" value="{{ s }}" {% if s == 1 %}required{% endif %}> {{ s }}
               </label>
             {% endfor %}

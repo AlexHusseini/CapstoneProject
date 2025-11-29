@@ -179,6 +179,24 @@ footer{ text-align:center; padding:24px; opacity:0.7; }
   vertical-align: middle;
 }
 
+.radio-scale {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.radio-scale label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.radio-scale small {
+  margin-left: 4px;
+  opacity: 0.8;
+}
+
 /* Auth/Login layout */
 .auth-wrap {
     display: flex;
