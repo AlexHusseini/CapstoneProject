@@ -1,9 +1,23 @@
+"""
+Configuration module for the Peer Evaluation System.
+
+This module defines the Flask application configuration, including database settings,
+email/SMTP configuration, scoring options, and curve grading parameters.
+All settings can be overridden via environment variables in a .env file.
+"""
+
 import os
 from pathlib import Path
 
+# Base directory for the project (used for relative paths like database location)
 BASE_DIR = Path(__file__).resolve().parent
 
 class Config:
+    """Flask application configuration class.
+    
+    Contains all configuration settings for the peer evaluation system.
+    Settings can be overridden via environment variables.
+    """
     SECRET_KEY = os.getenv("FLASK_SECRET_KEY", "dev-secret-key")
     DEBUG = os.getenv("FLASK_DEBUG", "True").lower() == "true"
     # SQLite DB in instance folder by default

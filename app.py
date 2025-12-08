@@ -1,3 +1,16 @@
+"""
+Main Flask application for the Peer Evaluation System.
+
+This module contains all route handlers and application logic for:
+- User authentication and session management
+- Course and student management
+- Rubric creation and management
+- Evaluation round setup and token generation
+- Evaluation form submission
+- Report generation (Excel export with scores and feedback)
+- Email delivery (SMTP or dev outbox)
+"""
+
 import argparse
 import os
 from datetime import datetime
@@ -19,9 +32,11 @@ from flask_wtf.csrf import CSRFProtect, generate_csrf
 from sqlalchemy import or_, text
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
+# Load environment variables from .env file
 load_dotenv()
 
-# Prebuilt rubric template (matches sponsor PDF exactly)
+# Prebuilt rubric template matching the sponsor's PDF specification
+# Contains 6 criteria with detailed descriptions and scoring anchors
 PREBUILT_RUBRIC_ITEMS = [
     {
         "criterion": "Professionalism",
@@ -88,12 +103,21 @@ PREBUILT_RUBRIC_ITEMS = [
 ]
 
 def create_app():
+    """Create and configure the Flask application.
+    
+    Sets up all routes, database, authentication, CSRF protection,
+    and Jinja2 template filters. Returns the configured app instance.
+    """
     app = Flask(__name__, instance_relative_config=True, template_folder="templates", static_folder="static")
 
     from datetime import timezone, datetime
 
     def to_local_timestr(dt):
-        """Convert a UTC (naive or tz-aware) datetime to local timezone and return the formatted string."""
+        """Convert a UTC datetime to local timezone and format as string.
+        
+        Used in templates to display timestamps in user's local time.
+        Format: "MM-DD-YYYY HH:MM AM/PM"
+        """
         if not dt:
             return ""
         if dt.tzinfo is None:
@@ -112,28 +136,34 @@ def create_app():
 
     app.jinja_env.filters["urlquote"] = _urlquote
 
+    # Load configuration from Config class
     app.config.from_object(Config)
     os.makedirs(app.instance_path, exist_ok=True)
 
-    # CSRF protection for all POST forms
+    # Enable CSRF protection for all POST forms (prevents cross-site request forgery)
     CSRFProtect(app)
 
     @app.context_processor
     def inject_csrf_token():
+        """Make CSRF token generator available in all templates."""
         return {"csrf_token": generate_csrf}
 
+    # Initialize database with app
     db.init_app(app)
 
+    # Configure Flask-Login for user session management
     login_manager = LoginManager()
-    login_manager.login_view = "login"
+    login_manager.login_view = "login"  # Redirect to login if not authenticated
     login_manager.init_app(app)
 
     @login_manager.user_loader
     def load_user(user_id):
+        """Load user from database for Flask-Login session management."""
         return db.session.get(User, int(user_id))
 
     @app.route("/")
     def index():
+        """Root route: redirect to dashboard if logged in, otherwise to login."""
         if current_user.is_authenticated:
             return redirect(url_for("dashboard"))
         return redirect(url_for("login"))
@@ -507,6 +537,12 @@ This link will expire in 60 minutes. If you did not request a reset, you can ign
     @app.route("/rounds/start", methods=["GET","POST"])
     @login_required
     def start_round():
+        """Start a new evaluation round (GET: show form, POST: create round and tokens).
+        
+        Creates evaluation tokens for all student pairs within each team.
+        Each student evaluates all teammates (but not themselves).
+        Sends email to each evaluator with links to their evaluation forms.
+        """
         rubrics = Rubric.query.all()
         if request.method == "POST":
             name = request.form.get("name","").strip()
@@ -522,25 +558,40 @@ This link will expire in 60 minutes. If you did not request a reset, you can ign
             r = EvalRound(name=name, rubric_id=rubric_id, status="active")
             db.session.add(r); db.session.flush()
         
+            # Safety check: prevent duplicate token creation if round already has tokens
+            # (UniqueConstraint in model also prevents duplicates at DB level)
+            existing_tokens = EvaluationToken.query.filter_by(eval_round_id=r.id).count()
+            if existing_tokens > 0:
+                db.session.rollback()
+                flash("This round already has evaluation tokens. Cannot create duplicates.", "warning")
+                return redirect(request.url)
+        
+            # Group students by team for evaluation pairing
             students = Student.query.all()
             by_team = {}
             for s in students:
                 by_team.setdefault(s.team, []).append(s)
+            
+            # Create evaluation tokens: each student evaluates all teammates
             pairs = 0
             for team, members in by_team.items():
                 for evaluator in members:
                     for evaluatee in members:
                         if evaluator.id == evaluatee.id: 
-                            continue
+                            continue  # Skip self-evaluation
+                        # UniqueConstraint in EvaluationToken model prevents duplicate (round, evaluator, evaluatee) pairs
                         db.session.add(EvaluationToken(eval_round_id=r.id, evaluator_id=evaluator.id, evaluatee_id=evaluatee.id))
                         pairs += 1
             db.session.commit()
 
+            # Send email to each evaluator with their evaluation links
             base = request.url_root.rstrip("/")
             emails = 0
             for team, members in by_team.items():
                 for evaluator in members:
+                    # Get all tokens for this evaluator (one per teammate)
                     tokens = EvaluationToken.query.filter_by(eval_round_id=r.id, evaluator_id=evaluator.id).all()
+                    # Build list of evaluation links
                     links = [f"- Evaluate {t.evaluatee.full_name}: {base}" + url_for('evaluate', token=t.token) for t in tokens]
                     body = f"""Hello {evaluator.first_name},
 
@@ -583,14 +634,22 @@ This link will expire in 60 minutes. If you did not request a reset, you can ign
 
     @app.route("/evaluate/<token>", methods=["GET","POST"])
     def evaluate(token):
+        """Handle evaluation form submission (GET: show form, POST: save response).
+        
+        Each token represents one evaluation opportunity. Once submitted,
+        the token cannot be used again (submitted_at check prevents duplicates).
+        """
         t = EvaluationToken.query.filter_by(token=token).first_or_404()
         round = t.eval_round
         if round.status != "active":
             return render_template("evaluation_form.html", closed=True, t=t, rubric=round.rubric)
         if request.method == "POST":
+            # Prevent duplicate submissions
             if t.submitted_at is not None:
                 flash("This evaluation was already submitted.", "warning")
                 return redirect(request.url)
+            
+            # Collect scores for each rubric criterion
             scores = {}
             for item in round.rubric.items:
                 key = f"criterion_{item.id}"
@@ -598,11 +657,16 @@ This link will expire in 60 minutes. If you did not request a reset, you can ign
                     val = int(request.form.get(key, "0"))
                 except ValueError:
                     val = 0
+                # Clamp score to valid range [0, max_score]
                 val = max(0, min(item.max_score, val))
                 scores[str(item.id)] = val
+            
+            # Get optional comments
             comments = request.form.get("comments", "").strip() or None
+            
+            # Save evaluation response
             resp = EvaluationResponse(token_id=t.id, scores=scores, comments=comments)
-            t.submitted_at = datetime.utcnow()
+            t.submitted_at = datetime.utcnow()  # Mark token as used
             db.session.add(resp); db.session.commit()
             return render_template("evaluation_form.html", submitted=True, t=t, rubric=round.rubric)
         return render_template("evaluation_form.html", t=t, rubric=round.rubric)
@@ -610,8 +674,17 @@ This link will expire in 60 minutes. If you did not request a reset, you can ign
     @app.route("/rounds/<int:round_id>/report")
     @login_required
     def report(round_id):
+        """Generate and download Excel report for an evaluation round.
+        
+        Creates Excel file with three sheets:
+        1. RawFeedback: All individual evaluation submissions
+        2. Scores: Aggregated scores per student (with optional curve)
+        3. Curve: Curve statistics (mean, std, k, threshold)
+        """
         r = db.session.get(EvalRound, round_id) or abort(404)
         tokens = EvaluationToken.query.filter_by(eval_round_id=round_id).all()
+        
+        # Build raw feedback data
         rows = []
         for t in tokens:
             evaluator = t.evaluator.full_name
@@ -634,7 +707,10 @@ This link will expire in 60 minutes. If you did not request a reset, you can ign
                 "scores": scores,
                 "comments": comments
             })
+        # Map rubric items for score calculation
         rubric_items = {str(it.id): (it.criterion, it.weight, it.max_score) for it in r.rubric.items}
+        
+        # Build RawFeedback sheet: one row per evaluation
         raw_records = []
         for row in rows:
             base = {
@@ -650,11 +726,13 @@ This link will expire in 60 minutes. If you did not request a reset, you can ign
             raw_records.append(base)
         df_raw = pd.DataFrame(raw_records)
 
+        # Calculate weighted percentage for each evaluation
         per_eval = []
         for row in rows:
             s = row["scores"]
             if not s:
                 continue
+            # Compute weighted percentage: sum of (score/max * weight) / sum of weights * 100
             score_pct = compute_weighted_percentage(s, rubric_items)
             per_eval.append({
                 "Evaluatee": row["evaluatee"],
@@ -663,6 +741,8 @@ This link will expire in 60 minutes. If you did not request a reset, you can ign
                 "Score %": round(score_pct, 2)
             })
         df_eval = pd.DataFrame(per_eval)
+        
+        # Aggregate scores: compute average (or median/trimmed mean) per student
         if not df_eval.empty:
             method = current_app.config.get("SCORING_METHOD", "mean")
             trim_f = float(current_app.config.get("SCORING_TRIM_FRACTION", 0.0) or 0.0)
@@ -670,7 +750,7 @@ This link will expire in 60 minutes. If you did not request a reset, you can ign
         else:
             df_scores = pd.DataFrame(columns=["Evaluatee","Team","Avg_Score_Pct","N_Evals"])
 
-        # Apply curved grading if enabled
+        # Apply curved grading if enabled (boosts lower scores toward mean)
         curve_enabled = bool(current_app.config.get("CURVE_ENABLED", True))
         if curve_enabled and not df_scores.empty:
             protect = float(current_app.config.get("CURVE_PROTECT_THRESHOLD", 80.0) or 80.0)
@@ -679,11 +759,12 @@ This link will expire in 60 minutes. If you did not request a reset, you can ign
         else:
             curve_stats = {"mean": 0.0, "std": 0.0, "k": 0.0, "protect_threshold": 80.0}
 
+        # Write Excel file with multiple sheets
         output = BytesIO()
         with pd.ExcelWriter(output, engine="openpyxl") as writer:
             df_raw.to_excel(writer, sheet_name="RawFeedback", index=False)
             df_scores.to_excel(writer, sheet_name="Scores", index=False)
-            # Curve stats
+            # Curve statistics sheet
             pd.DataFrame([
                 {"Mean": curve_stats.get("mean"), "Std": curve_stats.get("std"), "k": curve_stats.get("k"), "Protect_Threshold": curve_stats.get("protect_threshold")}
             ]).to_excel(writer, sheet_name="Curve", index=False)

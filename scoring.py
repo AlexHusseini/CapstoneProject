@@ -1,3 +1,13 @@
+"""
+Scoring and grading calculation module for the Peer Evaluation System.
+
+This module handles:
+- Weighted percentage calculation for individual evaluations
+- Aggregation of scores across multiple evaluators (mean, median, trimmed mean)
+- Curved grading with protection thresholds
+- Letter grade assignment
+"""
+
 from typing import Dict, Tuple
 
 import pandas as pd
@@ -34,22 +44,32 @@ def aggregate_scores_df(
 ) -> pd.DataFrame:
     """Aggregate per-evaluation percentages to per-student scores.
 
-    df_eval columns: ["Evaluatee", "Team", "Evaluator", "Score %"]
-    method: one of {"mean", "median", "trimmed_mean"}
-    trim_fraction: fraction to trim from each tail when method == trimmed_mean
+    Takes multiple evaluations for each student and computes an aggregate score.
+    
+    Args:
+        df_eval: DataFrame with columns ["Evaluatee", "Team", "Evaluator", "Score %"]
+        method: Aggregation method - "mean", "median", or "trimmed_mean"
+        trim_fraction: Fraction to trim from each tail when method == "trimmed_mean"
+                      (e.g., 0.1 trims 10% from top and bottom)
+    
+    Returns:
+        DataFrame with columns ["Evaluatee", "Team", "Avg_Score_Pct", "N_Evals"]
+        where Avg_Score_Pct is the aggregated score and N_Evals is the count
     """
     method = (method or "mean").lower().strip()
     if df_eval.empty:
+        # Return empty DataFrame with correct structure
         return pd.DataFrame(columns=["Evaluatee", "Team", "Avg_Score_Pct", "N_Evals"])\
                  .astype({"Avg_Score_Pct": "float64", "N_Evals": "int64"})
 
     if method == "median":
+        # Use median to reduce impact of outliers
         grouped = df_eval.groupby(["Evaluatee", "Team"]).agg(
             Avg_Score_Pct=("Score %", "median"),
             N_Evals=("Score %", "count"),
         )
     elif method == "trimmed_mean":
-        # Trim equally from both tails before averaging
+        # Trim equally from both tails before averaging (removes outliers)
         def trimmed_mean(s: pd.Series) -> float:
             n = len(s)
             if n == 0:
@@ -63,13 +83,14 @@ def aggregate_scores_df(
             s_sorted = s.sort_values().reset_index(drop=True)
             if 2 * k >= n:
                 return float(s.mean())
+            # Return mean of trimmed series (excluding k lowest and k highest)
             return float(s_sorted.iloc[k:n - k].mean())
 
         grouped = df_eval.groupby(["Evaluatee", "Team"]).agg(
             Avg_Score_Pct=("Score %", trimmed_mean),
             N_Evals=("Score %", "count"),
         )
-    else:  # default mean
+    else:  # default: simple arithmetic mean
         grouped = df_eval.groupby(["Evaluatee", "Team"]).agg(
             Avg_Score_Pct=("Score %", "mean"),
             N_Evals=("Score %", "count"),
@@ -81,7 +102,14 @@ def aggregate_scores_df(
 
 
 def compute_letter_grade(percent: float) -> str:
-    """Map percentage to letter grade using fixed bounds."""
+    """Map percentage score to letter grade using standard grading scale.
+    
+    Args:
+        percent: Numeric percentage score (0-100)
+    
+    Returns:
+        Letter grade: "A" (90+), "B" (80-89), "C" (70-79), "D" (60-69), "F" (<60)
+    """
     p = float(percent)
     if p >= 90.0:
         return "A"
@@ -101,33 +129,53 @@ def apply_curve_scores(
 ) -> Tuple[pd.DataFrame, Dict[str, float]]:
     """Apply curved grading to aggregated scores.
 
-    Parameters
-    - df_scores: DataFrame with columns ["Evaluatee", "Team", "Avg_Score_Pct", "N_Evals"]
-    - protect_threshold: percentages >= this value are not adjusted
-    - k: boosting factor in [0,1]; adjusted = raw + k * (M - raw) for raw < threshold
+    Implements a protection-based curve: students scoring above the threshold
+    are not adjusted, while lower scores are boosted toward the mean.
+    
+    Formula for scores below threshold: adjusted = raw + k * (mean - raw)
+    This pulls lower scores up toward the class average.
+    
+    Args:
+        df_scores: DataFrame with columns ["Evaluatee", "Team", "Avg_Score_Pct", "N_Evals"]
+        protect_threshold: Percentages >= this value are not adjusted (default 80.0)
+        k: Boosting factor in [0,1]. Higher k = more aggressive curve (default 0.5)
 
-    Returns (df_with_curved_columns, stats)
-    - df includes columns: Curved_Score_Pct, Letter_Grade
-    - stats includes: mean, std, k, protect_threshold
+    Returns:
+        Tuple of (df_with_curved_columns, stats)
+        - df includes new columns: Curved_Score_Pct, Letter_Grade
+        - stats dict includes: mean, std, k, protect_threshold
     """
     if df_scores.empty:
+        # Return empty DataFrame with correct structure
         return df_scores.assign(Curved_Score_Pct=df_scores.get("Avg_Score_Pct", pd.Series(dtype="float64")),
                                 Letter_Grade=""), {"mean": 0.0, "std": 0.0, "k": k, "protect_threshold": protect_threshold}
 
+    # Calculate class statistics for curve calculation
     raw = df_scores["Avg_Score_Pct"].astype(float)
     mean_val = float(raw.mean()) if len(raw) else 0.0
     std_val = float(raw.std(ddof=0)) if len(raw) else 0.0
 
     def adjust(x: float) -> float:
+        """Apply curve adjustment to a single score.
+        
+        Scores at or above threshold are unchanged.
+        Scores below threshold are boosted toward the mean.
+        """
         if x >= protect_threshold:
-            return float(x)
+            return float(x)  # Protected scores remain unchanged
+        # Boost lower scores: move toward mean by factor k
         return float(x + k * (mean_val - x))
 
+    # Apply curve adjustment and compute letter grades
     curved = raw.apply(adjust).round(2)
     letters = curved.apply(compute_letter_grade)
+    
+    # Add new columns to output DataFrame
     out = df_scores.copy()
     out["Curved_Score_Pct"] = curved
     out["Letter_Grade"] = letters
+    
+    # Return statistics for reference
     stats = {"mean": mean_val, "std": std_val, "k": float(k), "protect_threshold": float(protect_threshold)}
     return out, stats
 
